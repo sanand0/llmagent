@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
-import { Agent, setDefaultOpenAIClient, tool, run } from "@openai/agents";
+import { Agent, setDefaultOpenAIClient, setOpenAIAPI, tool, run } from "@openai/agents";
 
 const { baseUrl, apiKey } = await openaiConfig();
 
@@ -11,6 +11,7 @@ const customClient = new OpenAI({
   apiKey: apiKey,
 });
 setDefaultOpenAIClient(customClient);
+setOpenAIAPI("chat_completions");
 
 const multiplyTool = tool({
   name: "multiply",
