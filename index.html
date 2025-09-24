@@ -36,6 +36,28 @@
     <h1 class="display-1 my-4 text-center">LLM Agent</h1>
   </div>
 
+  <main class="container col-lg-8">
+    <form id="agent-form" class="d-grid gap-3">
+      <div>
+        <label for="agent-question" class="form-label">Ask the agent</label>
+        <textarea id="agent-question" class="form-control" rows="3" placeholder="What can the agent help you solve?" required></textarea>
+      </div>
+      <button id="agent-submit" type="submit" class="btn btn-primary align-self-start">
+        <span class="submit-label">Ask</span>
+        <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <div id="agent-status" class="form-text mt-3 text-secondary" role="status"></div>
+
+    <section id="agent-response" class="card mt-4 d-none">
+      <div class="card-header">Agent response</div>
+      <div class="card-body">
+        <pre class="mb-0" id="agent-response-content"></pre>
+      </div>
+    </section>
+  </main>
+
   <div id="modal-container"></div>
 
   <script type="importmap">
