@@ -38,6 +38,34 @@
 
   <main class="container col-lg-8">
     <form id="agent-form" class="d-grid gap-3">
+      <details class="card rounded-3 shadow-sm">
+        <summary class="h5 p-4 m-0">
+          <i class="bi bi-gear"></i>
+          Advanced
+        </summary>
+        <div class="p-4 pt-0">
+          <div class="row g-3 align-items-end">
+            <div class="col-sm-4">
+              <label class="form-label" for="openai-config-btn">API Keys</label>
+              <button type="button" class="btn btn-outline-secondary w-100" id="openai-config-btn">Config</button>
+            </div>
+            <div class="col-sm-8">
+              <label class="form-label" for="agent-model">Model</label>
+              <input id="agent-model" type="text" class="form-control" value="gpt-5-nano" list="agent-model-list">
+              <datalist id="agent-model-list">
+                <option value="gpt-4.1-mini"></option>
+                <option value="gpt-4.1-nano"></option>
+                <option value="gpt-5-mini"></option>
+                <option value="gpt-5-nano"></option>
+              </datalist>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label" for="agent-instructions">Agent Instructions</label>
+            <textarea id="agent-instructions" class="form-control font-monospace" rows="4">Always multiply inputs using the multiply tool.</textarea>
+          </div>
+        </div>
+      </details>
       <div>
         <label for="agent-question" class="form-label">Ask the agent</label>
         <textarea id="agent-question" class="form-control" rows="3" placeholder="What can the agent help you solve?" required></textarea>
