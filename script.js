@@ -48,7 +48,7 @@ $("#agent-form").addEventListener("submit", async (event) => {
 
     const model = $("#agent-model").value.trim();
     const instructions = $("#agent-instructions").value.trim();
-    const dynamicAgent = new Agent({ name: "Executor agent", instructions, model, tools: [multiplyTool] });
+    const dynamicAgent = new Agent({ name: "Executor agent", instructions, model, tools: [jsCodeTool] });
 
     const result = await run(dynamicAgent, question);
     renderResponse(result.finalOutput ?? "No response received.");
@@ -62,17 +62,21 @@ $("#agent-form").addEventListener("submit", async (event) => {
   }
 });
 
-const multiplyTool = tool({
-  name: "multiply",
-  description: "Multiply 2 numbers",
+const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+
+const jsCodeTool = tool({
+  name: "js_code",
+  description: "Execute JavaScript code and return the awaited result.",
   parameters: {
     type: "object",
     properties: {
-      a: { type: "number" },
-      b: { type: "number" },
+      code: { type: "string" },
     },
-    required: ["a", "b"],
+    required: ["code"],
     additionalProperties: false,
   },
-  execute: async (a, b) => a * b,
+  execute: async (code) => {
+    const fn = new AsyncFunction(code);
+    return await fn();
+  },
 });
