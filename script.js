@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
 import { Agent, setDefaultOpenAIClient, setOpenAIAPI, tool, run } from "@openai/agents";
@@ -49,9 +48,9 @@ $("#agent-form").addEventListener("submit", async (event) => {
 
     const model = $("#agent-model").value.trim();
     const instructions = $("#agent-instructions").value.trim();
-    const dynamicAgent = new Agent({ name: "Calculator agent", instructions, model });
+    const dynamicAgent = new Agent({ name: "Executor agent", instructions, model, tools: [multiplyTool] });
 
-    const result = await run(dynamicAgent, question, [multiplyTool]);
+    const result = await run(dynamicAgent, question);
     renderResponse(result.finalOutput ?? "No response received.");
     renderStatus("Done.");
   } catch (error) {
@@ -66,6 +65,14 @@ $("#agent-form").addEventListener("submit", async (event) => {
 const multiplyTool = tool({
   name: "multiply",
   description: "Multiply 2 numbers",
-  parameters: z.object({ a: z.number(), b: z.number() }),
+  parameters: {
+    type: "object",
+    properties: {
+      a: { type: "number" },
+      b: { type: "number" },
+    },
+    required: ["a", "b"],
+    additionalProperties: false,
+  },
   execute: async (a, b) => a * b,
 });
