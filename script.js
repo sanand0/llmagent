@@ -1,8 +1,9 @@
 import { render, html } from "lit-html";
+import saveform from "saveform";
 import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
-import { Agent, setDefaultOpenAIClient, run } from "@openai/agents";
-import { jsCodeTool } from "./tools.js";
+import { Agent, setDefaultOpenAIClient, tool, run } from "@openai/agents";
+import { jsCodeTool, googleSearchTool } from "./tools.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const BASE_URLS = [
@@ -12,6 +13,7 @@ const BASE_URLS = [
   "https://llmfoundry.straive.com/openai/v1",
 ];
 
+saveform("#agent-form");
 const submitSpinner = $("#agent-submit .spinner-border");
 
 $("#openai-config-btn").addEventListener("click", () => {
@@ -37,7 +39,13 @@ $("#agent-form").addEventListener("submit", async (event) => {
 
   const model = $("#agent-model").value.trim();
   const instructions = $("#agent-instructions").value.trim();
-  const dynamicAgent = new Agent({ name: "Executor agent", instructions, model, tools: [jsCodeTool] });
+  const env = Object.fromEntries(new FormData(document.querySelector("#agent-form")).entries());
+  const dynamicAgent = new Agent({
+    name: "Executor agent",
+    instructions,
+    model,
+    tools: [jsCodeTool, googleSearchTool].map((config) => tool({ ...config, execute: config.execute.bind(env) })),
+  });
 
   const stream = await run(dynamicAgent, question, { stream: true });
   for await (const event of stream) {
