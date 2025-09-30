@@ -8,6 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTUiIGZpbGw9IiMyNTYzZWIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJtMTYgNyAyIDcgNyAyLTcgMi0yIDctMi03LTctMiA3LTJaIi8+PC9zdmc+">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css" crossorigin="anonymous">
 </head>
 
 <body style="margin-bottom: 50vh">
@@ -41,13 +42,13 @@
       <details class="card rounded-3 shadow-sm">
         <summary class="h5 p-4 m-0">
           <i class="bi bi-gear"></i>
-          Advanced
+          Configuration
         </summary>
         <div class="p-4 pt-0">
           <div class="row g-3 align-items-end">
             <div class="col-sm-4">
-              <label class="form-label" for="openai-config-btn">API Keys</label>
-              <button type="button" class="btn btn-outline-secondary w-100" id="openai-config-btn">Config</button>
+              <label class="form-label" for="openai-config-btn">LLM Config</label>
+              <button type="button" class="btn btn-outline-secondary w-100" id="openai-config-btn">Provider</button>
             </div>
             <div class="col-sm-8">
               <label class="form-label" for="agent-model">Model</label>
@@ -62,7 +63,7 @@
           </div>
           <div class="mt-3">
             <label class="form-label" for="agent-instructions">Agent Instructions</label>
-            <textarea id="agent-instructions" class="form-control font-monospace" rows="4">Always answer using tools. Stop after 2 turns.</textarea>
+            <textarea id="agent-instructions" class="form-control font-monospace" rows="4"></textarea>
           </div>
           <div class="mt-3 row g-2">
             <div class="col-sm-6">
@@ -95,8 +96,10 @@
   {
     "imports": {
       "bootstrap-llm-provider": "https://cdn.jsdelivr.net/npm/bootstrap-llm-provider@1",
+      "highlight.js": "https://cdn.jsdelivr.net/npm/highlight.js@11/+esm",
       "lit-html": "https://cdn.jsdelivr.net/npm/lit-html@3/+esm",
       "unsafe-html": "https://cdn.jsdelivr.net/npm/lit-html@3/directives/unsafe-html.js",
+      "marked": "https://cdn.jsdelivr.net/npm/marked@13/+esm",
       "openai": "https://cdn.jsdelivr.net/npm/openai@5.22.1/+esm",
       "@openai/agents": "https://cdn.jsdelivr.net/npm/@openai/agents@0.1.4/+esm",
       "saveform": "https://cdn.jsdelivr.net/npm/saveform@1"

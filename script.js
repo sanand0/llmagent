@@ -1,11 +1,15 @@
 import { render, html } from "lit-html";
+import { unsafeHTML } from "unsafe-html";
 import saveform from "saveform";
+import { Marked } from "marked";
 import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
 import { Agent, setDefaultOpenAIClient, tool, run } from "@openai/agents";
+import hljs from "highlight.js";
 import { jsCodeTool, googleSearchTool } from "./tools.js";
 
 const $ = (s, el = document) => el.querySelector(s);
+const marked = new Marked();
 const BASE_URLS = [
   "https://api.openai.com/v1",
   "https://aipipe.org/openai/v1",
@@ -44,11 +48,19 @@ $("#agent-form").addEventListener("submit", async (event) => {
     name: "Executor agent",
     instructions,
     model,
+    modelSettings: {
+      // Ask the model to produce a reasoning summary you can show to users
+      reasoning: { effort: "high", summary: "auto" },
+      text: { verbosity: "low" },
+      store: true
+    },
+    // Allow tools access to the form environment (e.g. API keys)
     tools: [jsCodeTool, googleSearchTool].map((config) => tool({ ...config, execute: config.execute.bind(env) })),
   });
 
   const stream = await run(dynamicAgent, question, { stream: true });
   for await (const event of stream) {
+    console.log(event);
     if (event.type != "run_item_stream_event") continue;
     results.push(event);
     renderResponse(results);
@@ -59,10 +71,12 @@ $("#agent-form").addEventListener("submit", async (event) => {
 const renderResponse = (results) => {
   render(
     results.map(
-      (event) => html`<div class="${event.name}">
-        <strong>${event.item.agent.name}</strong>
+      (event) => html`<details class="mb-3" ?open=${event.name == "user_message" || event.name == "message_output_created"}>
+        <summary class="mb-2">
+          <strong>${event.item.agent.name}</strong>: ${event.name}
+        </summary>
         ${renderEvent(event)}
-      </div>`
+      </details>`
     ),
     $("#agent-response")
   );
@@ -71,15 +85,25 @@ const renderResponse = (results) => {
 const renderEvent = ({ name, item }) => {
   const raw = item?.rawItem;
   return name === "user_message"
-    ? html`<em>Input</em> ${item.output}`
+    ? item.output
     : name == "reasoning_item_created"
-    ? html`<em>Thinking</em>`
+    ? null
     : name == "tool_called"
-    ? html`<em>Tool call</em> <code>${raw.name} ${raw.arguments}</code> `
+    ? html`<pre class="hljs language-json px-2 py-3"><code>${raw.name} ${highlightJSON(raw.arguments)}</code></pre>`
     : name == "tool_output"
-    ? html`<em>Tool output</em>
-        <code>${raw.name} ${raw.output.type == "text" ? raw.output.text : JSON.stringify(raw.output)}</code>`
+    ? html`<pre class="hljs language-json px-2 py-3"><code>${raw.name} ${highlightJSON(
+        raw.output.type == "text" ? raw.output.text : raw.output
+      )}</code></pre>`
     : name == "message_output_created"
-    ? raw.content.map((content) => (content.type == "output_text" ? content.text : JSON.stringify(content)))
+    ? raw.content.map((content) =>
+        content.type == "output_text" ? unsafeHTML(marked.parse(content.text)) : highlightJSON(content)
+      )
     : JSON.stringify(item);
 };
+
+// Syntax highlight JSON, provided as a string or object
+const highlightJSON = (json) =>
+  unsafeHTML(
+    hljs.highlight(JSON.stringify(typeof json === "string" ? JSON.parse(json) : json, null, 2), { language: "json" })
+      .value
+  );
