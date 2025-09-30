@@ -78,6 +78,11 @@
         </div>
       </details>
       <div>
+        <label for="context" class="form-label">Provide context</label>
+        <textarea id="context" name="context" class="form-control exclude-saveform" rows="6" placeholder="Paste relevant details for the agent"></textarea>
+      </div>
+      <div id="agent-response" class="mt-4"></div>
+      <div>
         <label for="agent-question" class="form-label">Ask the agent</label>
         <textarea id="agent-question" class="form-control" rows="3" placeholder="What can the agent help you solve?" required></textarea>
       </div>
@@ -86,8 +91,6 @@
         <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
       </button>
     </form>
-
-    <div id="agent-response" class="mt-4"></div>
   </main>
 
   <div id="modal-container"></div>

@@ -2,12 +2,15 @@
 
 const AsyncFunction = async function () {}.constructor;
 
-export const jsCodeTool = {
+export const jsCodeTool = (env) => ({
   name: "js_code",
   description: `Execute async browser JS code. Always use return. e.g.
 return await fetch("https://aipipe.org/proxy/https://httpbin.org/get?x=1").then(r => r.json())
 
-https://aipipe.org/proxy/[URL] can be used to bypass CORS issues.
+Fetch https://aipipe.org/proxy/[URL] to bypass CORS.
+
+You can use:
+${Object.entries(env).map(([k, v]) => `- env["${k}"]: ${v.length} char str\n`).join("")}
 `,
   parameters: {
     type: "object",
@@ -16,19 +19,20 @@ https://aipipe.org/proxy/[URL] can be used to bypass CORS issues.
     additionalProperties: false,
   },
   execute: async function ({ code }) {
-    const fn = new AsyncFunction(code);
+    console.log(code);
+    const fn = new AsyncFunction("env", code);
     let result;
     try {
-      result = await fn();
+      result = await fn(env);
     } catch (error) {
       console.error(error);
       return `Error: ${error.message} ${error.stack}`;
     }
     return result;
   },
-};
+});
 
-export const googleSearchTool = {
+export const googleSearchTool = (env) => ({
   name: "google_search",
   description: "Search the web via Google Custom Search API and return the raw JSON response.",
   parameters: {
@@ -42,7 +46,7 @@ export const googleSearchTool = {
     additionalProperties: false,
   },
   execute: async function ({ query, num, start }) {
-    const params = new URLSearchParams({ key: this.GOOGLE_API_KEY, cx: this.GOOGLE_CSE_ID, q: query });
+    const params = new URLSearchParams({ key: env.GOOGLE_API_KEY, cx: env.GOOGLE_CSE_ID, q: query });
     console.log(params);
     if (typeof num === "number") params.set("num", `${num}`);
     if (typeof start === "number") params.set("start", `${start}`);
@@ -59,4 +63,4 @@ export const googleSearchTool = {
     }
     return await response.json();
   },
-};
+});

@@ -4,7 +4,7 @@ import saveform from "saveform";
 import { Marked } from "marked";
 import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
-import { Agent, setDefaultOpenAIClient, tool, run } from "@openai/agents";
+import { Agent, setDefaultOpenAIClient, user, tool, run } from "@openai/agents";
 import hljs from "highlight.js";
 import { jsCodeTool, googleSearchTool } from "./tools.js";
 
@@ -17,7 +17,9 @@ const BASE_URLS = [
   "https://llmfoundry.straive.com/openai/v1",
 ];
 
-saveform("#agent-form");
+let thread = [];
+
+saveform("#agent-form", { exclude: '[type="file"], .exclude-saveform' });
 const submitSpinner = $("#agent-submit .spinner-border");
 
 $("#openai-config-btn").addEventListener("click", () => {
@@ -35,75 +37,82 @@ $("#agent-form").addEventListener("submit", async (event) => {
   if (!question) return;
 
   setLoadingState(true);
-  const results = [{ name: "user_message", item: { agent: { name: "User" }, output: question } }];
-  renderResponse(results);
+  $("#agent-question").value = "";
+  $("#agent-question").focus();
 
-  const { baseUrl, apiKey } = await openaiConfig({ defaultBaseUrls: BASE_URLS });
-  setDefaultOpenAIClient(new OpenAI({ dangerouslyAllowBrowser: true, baseURL: baseUrl, apiKey: apiKey }));
-
-  const model = $("#agent-model").value.trim();
-  const instructions = $("#agent-instructions").value.trim();
-  const env = Object.fromEntries(new FormData(document.querySelector("#agent-form")).entries());
-  const dynamicAgent = new Agent({
-    name: "Executor agent",
-    instructions,
-    model,
-    modelSettings: {
-      // Ask the model to produce a reasoning summary you can show to users
-      reasoning: { effort: "high", summary: "auto" },
-      text: { verbosity: "low" },
-      store: true
-    },
-    // Allow tools access to the form environment (e.g. API keys)
-    tools: [jsCodeTool, googleSearchTool].map((config) => tool({ ...config, execute: config.execute.bind(env) })),
-  });
-
-  const stream = await run(dynamicAgent, question, { stream: true });
-  for await (const event of stream) {
-    console.log(event);
-    if (event.type != "run_item_stream_event") continue;
-    results.push(event);
-    renderResponse(results);
+  thread.push(user(question));
+  // Only add context the first time
+  if (thread.length == 1) {
+    let doc = $("#context").value.trim();
+    if (doc.length > 10000) {
+      doc = `Answer fetching parts of env["context"] (${doc.length} chars) via jsCodeTool:\n\n${
+        doc.slice(0, 100) + "\n\n...[Trimmed]...\n\n" + doc.slice(-100)
+      }`;
+    } else {
+      doc = `Answer using context:\n\n${doc}`;
+    }
+    thread.push(user(doc));
   }
-  setLoadingState(false);
+
+  renderThread(thread);
+  try {
+    const { baseUrl, apiKey } = await openaiConfig({ defaultBaseUrls: BASE_URLS });
+    setDefaultOpenAIClient(new OpenAI({ dangerouslyAllowBrowser: true, baseURL: baseUrl, apiKey: apiKey }));
+
+    const model = $("#agent-model").value.trim();
+    const instructions = $("#agent-instructions").value.trim();
+    const env = Object.fromEntries(new FormData(document.querySelector("#agent-form")).entries());
+    const dynamicAgent = new Agent({
+      name: "Executor agent",
+      instructions,
+      model,
+      modelSettings: {
+        // Ask the model to produce a reasoning summary you can show to users
+        reasoning: { effort: "high", summary: "auto" },
+        text: { verbosity: "low" },
+        store: true,
+      },
+      // Allow tools access to the form environment (e.g. API keys)
+      tools: [jsCodeTool, googleSearchTool].map((config) => tool(config(env))),
+    });
+    console.log(jsCodeTool(env));
+
+    const stream = await run(dynamicAgent, thread, { stream: true });
+    for await (const event of stream) {
+      if (event.type !== "run_item_stream_event") continue;
+      renderThread(stream.history);
+    }
+    thread = stream.history;
+  } finally {
+    setLoadingState(false);
+  }
 });
 
-const renderResponse = (results) => {
-  render(
-    results.map(
-      (event) => html`<details class="mb-3" ?open=${event.name == "user_message" || event.name == "message_output_created"}>
-        <summary class="mb-2">
-          <strong>${event.item.agent.name}</strong>: ${event.name}
-        </summary>
-        ${renderEvent(event)}
-      </details>`
-    ),
-    $("#agent-response")
-  );
+const renderThread = (thread) => render(thread.map(threadItem), $("#agent-response"));
+
+const threadItem = (item) => {
+  const { type, role, name, content, output } = item;
+  const details =
+    type == "message"
+      ? html`<summary class="mb-2"><strong>${role}</strong></summary>
+          ${unsafeHTML(marked.parse(content[0].text))}`
+      : type == "function_call"
+      ? html`<summary class="mb-2"><strong>tool</strong>: ${name}</summary>
+          <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(item.arguments)}</code></pre>`
+      : type == "function_call_result"
+      ? html`<summary class="mb-2"><strong>results</strong>: ${name}</summary>
+          <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(output.text)}</code></pre>`
+      : JSON.stringify(item);
+  return html`<details class="mb-3" ?open=${type == "message"}>${details}</details>`;
 };
 
-const renderEvent = ({ name, item }) => {
-  const raw = item?.rawItem;
-  return name === "user_message"
-    ? item.output
-    : name == "reasoning_item_created"
-    ? null
-    : name == "tool_called"
-    ? html`<pre class="hljs language-json px-2 py-3"><code>${raw.name} ${highlightJSON(raw.arguments)}</code></pre>`
-    : name == "tool_output"
-    ? html`<pre class="hljs language-json px-2 py-3"><code>${raw.name} ${highlightJSON(
-        raw.output.type == "text" ? raw.output.text : raw.output
-      )}</code></pre>`
-    : name == "message_output_created"
-    ? raw.content.map((content) =>
-        content.type == "output_text" ? unsafeHTML(marked.parse(content.text)) : highlightJSON(content)
-      )
-    : JSON.stringify(item);
+// Syntax highlight string or object
+const codeBlock = (json) => {
+  if (typeof json === "string")
+    try {
+      json = JSON.stringify(JSON.parse(json), null, 2);
+    } catch {
+      // ignore
+    }
+  return unsafeHTML(hljs.highlight(json, { language: "json" }).value);
 };
-
-// Syntax highlight JSON, provided as a string or object
-const highlightJSON = (json) =>
-  unsafeHTML(
-    hljs.highlight(JSON.stringify(typeof json === "string" ? JSON.parse(json) : json, null, 2), { language: "json" })
-      .value
-  );
