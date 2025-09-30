@@ -48,10 +48,10 @@ $("#agent-form").addEventListener("submit", async (event) => {
       doc = `Answer fetching parts of env["context"] (${doc.length} chars) via jsCodeTool:\n\n${
         doc.slice(0, 100) + "\n\n...[Trimmed]...\n\n" + doc.slice(-100)
       }`;
-    } else {
+    } else if (doc.length) {
       doc = `Answer using context:\n\n${doc}`;
     }
-    thread.push(user(doc));
+    if (doc.length) thread.push(user(doc));
   }
 
   renderThread(thread);
@@ -75,7 +75,6 @@ $("#agent-form").addEventListener("submit", async (event) => {
       // Allow tools access to the form environment (e.g. API keys)
       tools: [jsCodeTool, googleSearchTool].map((config) => tool(config(env))),
     });
-    console.log(jsCodeTool(env));
 
     const stream = await run(dynamicAgent, thread, { stream: true });
     for await (const event of stream) {
@@ -102,6 +101,9 @@ const threadItem = (item) => {
       : type == "function_call_result"
       ? html`<summary class="mb-2"><strong>results</strong>: ${name}</summary>
           <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(output.text)}</code></pre>`
+      : type == "reasoning"
+      ? html`<summary class="mb-2"><strong>reasoning</strong></summary>
+          ${content.map((c) => html`<div>${unsafeHTML(marked.parse(c.text))}</div>`)}`
       : JSON.stringify(item);
   return html`<details class="mb-3" ?open=${type == "message"}>${details}</details>`;
 };

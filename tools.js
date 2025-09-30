@@ -10,7 +10,9 @@ return await fetch("https://aipipe.org/proxy/https://httpbin.org/get?x=1").then(
 Fetch https://aipipe.org/proxy/[URL] to bypass CORS.
 
 You can use:
-${Object.entries(env).map(([k, v]) => `- env["${k}"]: ${v.length} char str\n`).join("")}
+${Object.entries(env)
+  .map(([k, v]) => `- env["${k}"]: ${v.length} char str\n`)
+  .join("")}
 `,
   parameters: {
     type: "object",
@@ -19,7 +21,6 @@ ${Object.entries(env).map(([k, v]) => `- env["${k}"]: ${v.length} char str\n`).j
     additionalProperties: false,
   },
   execute: async function ({ code }) {
-    console.log(code);
     const fn = new AsyncFunction("env", code);
     let result;
     try {
@@ -47,7 +48,6 @@ export const googleSearchTool = (env) => ({
   },
   execute: async function ({ query, num, start }) {
     const params = new URLSearchParams({ key: env.GOOGLE_API_KEY, cx: env.GOOGLE_CSE_ID, q: query });
-    console.log(params);
     if (typeof num === "number") params.set("num", `${num}`);
     if (typeof start === "number") params.set("start", `${start}`);
     let response;
