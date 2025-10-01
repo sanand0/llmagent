@@ -6,7 +6,7 @@ import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
 import { Agent, setDefaultOpenAIClient, user, tool, run } from "@openai/agents";
 import hljs from "highlight.js";
-import { jsCodeTool, googleSearchTool } from "./tools.js";
+import { jsCode, googleSearch } from "./tools.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const marked = new Marked();
@@ -18,6 +18,7 @@ const BASE_URLS = [
 ];
 
 let thread = [];
+const tools = { jsCode, googleSearch };
 
 saveform("#agent-form", { exclude: '[type="file"], .exclude-saveform' });
 const submitSpinner = $("#agent-submit .spinner-border");
@@ -68,12 +69,10 @@ $("#agent-form").addEventListener("submit", async (event) => {
       model,
       modelSettings: {
         // Ask the model to produce a reasoning summary you can show to users
-        reasoning: { effort: "high", summary: "auto" },
-        text: { verbosity: "low" },
-        store: true,
+        reasoning: { summary: "auto" },
       },
       // Allow tools access to the form environment (e.g. API keys)
-      tools: [jsCodeTool, googleSearchTool].map((config) => tool(config(env))),
+      tools: Object.entries(tools).map(([name, config]) => tool({ ...config.getTool(env), name })),
     });
 
     const stream = await run(dynamicAgent, thread, { stream: true });
@@ -96,11 +95,15 @@ const threadItem = (item) => {
       ? html`<summary class="mb-2"><strong>${role}</strong></summary>
           ${unsafeHTML(marked.parse(content[0].text))}`
       : type == "function_call"
-      ? html`<summary class="mb-2"><strong>tool</strong>: ${name}</summary>
-          <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(item.arguments)}</code></pre>`
+      ? tools[name].render
+        ? tools[name].render(item)
+        : html`<summary class="mb-2"><strong>tool</strong>: ${name}</summary>
+            <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(item.arguments)}</code></pre>`
       : type == "function_call_result"
-      ? html`<summary class="mb-2"><strong>results</strong>: ${name}</summary>
-          <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(output.text)}</code></pre>`
+      ? tools[name].renderResults
+        ? tools[name].renderResults(item)
+        : html`<summary class="mb-2"><strong>results</strong>: ${name}</summary>
+            <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(output.text)}</code></pre>`
       : type == "reasoning"
       ? html`<summary class="mb-2"><strong>reasoning</strong></summary>
           ${content.map((c) => html`<div>${unsafeHTML(marked.parse(c.text))}</div>`)}`

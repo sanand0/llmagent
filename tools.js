@@ -1,10 +1,13 @@
-// Note: All .execute functions will be bound to an environment object.
+import { render, html } from "lit-html";
+import { unsafeHTML } from "unsafe-html";
+import { Marked } from "marked";
+const marked = new Marked();
 
 const AsyncFunction = async function () {}.constructor;
 
-export const jsCodeTool = (env) => ({
-  name: "js_code",
-  description: `Execute async browser JS code. Always use return. e.g.
+export const jsCode = {
+  getTool: (env) => ({
+    description: `Execute async browser JS code. Always use return. e.g.
 return await fetch("https://aipipe.org/proxy/https://httpbin.org/get?x=1").then(r => r.json())
 
 Fetch https://aipipe.org/proxy/[URL] to bypass CORS.
@@ -14,53 +17,80 @@ ${Object.entries(env)
   .map(([k, v]) => `- env["${k}"]: ${v.length} char str\n`)
   .join("")}
 `,
-  parameters: {
-    type: "object",
-    properties: { code: { type: "string" } },
-    required: ["code"],
-    additionalProperties: false,
-  },
-  execute: async function ({ code }) {
-    const fn = new AsyncFunction("env", code);
-    let result;
-    try {
-      result = await fn(env);
-    } catch (error) {
-      console.error(error);
-      return `Error: ${error.message} ${error.stack}`;
-    }
-    return result;
-  },
-});
-
-export const googleSearchTool = (env) => ({
-  name: "google_search",
-  description: "Search the web via Google Custom Search API and return the raw JSON response.",
-  parameters: {
-    type: "object",
-    properties: {
-      query: { type: "string" },
-      num: { type: "number" },
-      start: { type: "number" },
+    parameters: {
+      type: "object",
+      properties: { code: { type: "string" } },
+      required: ["code"],
+      additionalProperties: false,
     },
-    required: ["query", "num", "start"],
-    additionalProperties: false,
+    execute: async function ({ code }) {
+      const fn = new AsyncFunction("env", code);
+      let result;
+      try {
+        result = await fn(env);
+      } catch (error) {
+        console.error(error);
+        return `Error: ${error.message} ${error.stack}`;
+      }
+      return result;
+    },
+  }),
+  render: null,
+  renderResults: null,
+};
+
+export const googleSearch = {
+  getTool: (env) => ({
+    description: "Search the web via Google Custom Search API and return the raw JSON response.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        num: { type: "number" },
+        start: { type: "number" },
+      },
+      required: ["query", "num", "start"],
+      additionalProperties: false,
+    },
+    execute: async function ({ query, num, start }) {
+      const params = new URLSearchParams({ key: env.GOOGLE_API_KEY, cx: env.GOOGLE_CSE_ID, q: query });
+      if (typeof num === "number") params.set("num", `${num}`);
+      if (typeof start === "number") params.set("start", `${start}`);
+      let response;
+      try {
+        response = await fetch(`https://customsearch.googleapis.com/customsearch/v1?${params.toString()}`);
+      } catch (error) {
+        console.error(error);
+        return `Error: ${error.message}`;
+      }
+      if (!response.ok) {
+        const errorText = await response.text();
+        return `Error: ${response.status} ${errorText}`;
+      }
+      return await response.json();
+    },
+  }),
+  render: (item) => {
+    const { query, start, num } = JSON.parse(item.arguments);
+    return html`<summary class="mb-2">
+      <strong>Google search</strong> for <q>${query}</q> (${start + 1} - ${start + num})
+    </summary>`;
   },
-  execute: async function ({ query, num, start }) {
-    const params = new URLSearchParams({ key: env.GOOGLE_API_KEY, cx: env.GOOGLE_CSE_ID, q: query });
-    if (typeof num === "number") params.set("num", `${num}`);
-    if (typeof start === "number") params.set("start", `${start}`);
-    let response;
-    try {
-      response = await fetch(`https://customsearch.googleapis.com/customsearch/v1?${params.toString()}`);
-    } catch (error) {
-      console.error(error);
-      return `Error: ${error.message}`;
-    }
-    if (!response.ok) {
-      const errorText = await response.text();
-      return `Error: ${response.status} ${errorText}`;
-    }
-    return await response.json();
+  renderResults: (item) => {
+    // Format Google search results
+    const { queries, searchInformation, items } = JSON.parse(item.output.text);
+    return html`<summary class="mb-2">
+        <strong>Google search results</strong> for <q>${queries.request[0].searchTerms}</q>
+        (${items.length} of ${searchInformation.formattedTotalResults} in ${searchInformation.formattedSearchTime}s)
+      </summary>
+      ${items.map(
+        ({ htmlTitle, htmlSnippet, link, htmlFormattedUrl }) => html`
+          <a class="mb-2 text-decoration-none link-body-emphasis" href="${link}" target="_blank" rel="noopener">
+            <strong>${unsafeHTML(htmlTitle)}</strong>
+            <div class="link-primary">${unsafeHTML(htmlFormattedUrl)}</div>
+            <div>${htmlSnippet ? html`<div>${unsafeHTML(marked.parse(htmlSnippet))}</div>` : null}</div>
+          </a>
+        `
+      )}`;
   },
-});
+};
