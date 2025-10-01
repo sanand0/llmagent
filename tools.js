@@ -1,6 +1,8 @@
-import { render, html } from "lit-html";
+import { html } from "lit-html";
 import { unsafeHTML } from "unsafe-html";
 import { Marked } from "marked";
+import { formatJson, highlight } from "./format.js";
+
 const marked = new Marked();
 
 const AsyncFunction = async function () {}.constructor;
@@ -35,8 +37,16 @@ ${Object.entries(env)
       return result;
     },
   }),
-  render: null,
-  renderResults: null,
+  render: (item) => {
+    const args = JSON.parse(item.arguments ?? "{}");
+    return html`<summary class="mb-2"><strong>Code</strong></summary>
+      <pre class="hljs language-javascript px-2 py-3"><code>${highlight(args.code ?? "", "js")}</code></pre>`;
+  },
+  renderResults: (item) => {
+    const output = formatJson(item.output?.text ?? "");
+    return html`<summary class="mb-2"><strong>Results</strong></summary>
+      <pre class="hljs language-json px-2 py-3"><code>${highlight(output, "json")}</code></pre>`;
+  },
 };
 
 export const googleSearch = {

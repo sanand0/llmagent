@@ -5,7 +5,6 @@ import { Marked } from "marked";
 import { openaiConfig } from "bootstrap-llm-provider";
 import { OpenAI } from "openai";
 import { Agent, setDefaultOpenAIClient, user, tool, run } from "@openai/agents";
-import hljs from "highlight.js";
 import { jsCode, googleSearch } from "./tools.js";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -92,32 +91,21 @@ const threadItem = (item) => {
   const { type, role, name, content, output } = item;
   const details =
     type == "message"
-      ? html`<summary class="mb-2"><strong>${role}</strong></summary>
+      ? html`<summary class="mb-2 fw-bold">${role}</summary>
           ${unsafeHTML(marked.parse(content[0].text))}`
       : type == "function_call"
       ? tools[name].render
         ? tools[name].render(item)
-        : html`<summary class="mb-2"><strong>tool</strong>: ${name}</summary>
-            <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(item.arguments)}</code></pre>`
+        : html`<summary class="mb-2 fw-bold">${name}</summary>
+            <pre>${item.arguments}</pre>`
       : type == "function_call_result"
       ? tools[name].renderResults
         ? tools[name].renderResults(item)
-        : html`<summary class="mb-2"><strong>results</strong>: ${name}</summary>
-            <pre class="hljs language-json px-2 py-3"><code>${name} ${codeBlock(output.text)}</code></pre>`
+        : html`<summary class="mb-2 fw-bold">${name} results</summary>
+            <pre>${output.text}</pre>`
       : type == "reasoning"
-      ? html`<summary class="mb-2"><strong>reasoning</strong></summary>
+      ? html`<summary class="mb-2 fw-bold">Reasoning</summary>
           ${content.map((c) => html`<div>${unsafeHTML(marked.parse(c.text))}</div>`)}`
       : JSON.stringify(item);
-  return html`<details class="mb-3" ?open=${type == "message"}>${details}</details>`;
-};
-
-// Syntax highlight string or object
-const codeBlock = (json) => {
-  if (typeof json === "string")
-    try {
-      json = JSON.stringify(JSON.parse(json), null, 2);
-    } catch {
-      // ignore
-    }
-  return unsafeHTML(hljs.highlight(json, { language: "json" }).value);
+  return html`<details class="${type == "message" ? "mt-3" : "small"}" ?open=${type == "message"}>${details}</details>`;
 };
